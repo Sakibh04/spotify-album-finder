@@ -1,7 +1,6 @@
 // Spotify Web API Configuration
-//In order to remain secure, these keys have been removed, but can be provided upon request
-const CLIENT_ID = 'client-key';
-const CLIENT_SECRET = 'secret-key';
+let CLIENT_ID = '';
+let CLIENT_SECRET = '';
 
 // DOM Elements
 const artistInput = document.getElementById('artistInput');
@@ -27,6 +26,7 @@ artistInput.addEventListener('keypress', handleKeyPress);
 // Initialize the application
 async function initializeApp() {
     try {
+        await loadEnvConfig();
         await getAccessToken();
         console.log('App initialized successfully');
         // Set initial centered state
@@ -35,6 +35,50 @@ async function initializeApp() {
         showError('Failed to initialize application. Please check your API credentials.');
         console.error('Initialization error:', error);
     }
+}
+
+// Load environment values from .env file
+async function loadEnvConfig() {
+    const response = await fetch('.env', { cache: 'no-store' });
+
+    if (!response.ok) {
+        throw new Error('Could not load .env file. Run the app with a local server and ensure .env exists.');
+    }
+
+    const envText = await response.text();
+    const env = parseEnvFile(envText);
+
+    CLIENT_ID = env.CLIENT_ID || env.SPOTIFY_CLIENT_ID || '';
+    CLIENT_SECRET = env.CLIENT_SECRET || env.SPOTIFY_CLIENT_SECRET || '';
+
+    if (!CLIENT_ID || !CLIENT_SECRET) {
+        throw new Error('Missing CLIENT_ID or CLIENT_SECRET in .env file.');
+    }
+}
+
+function parseEnvFile(content) {
+    return content
+        .split(/\r?\n/)
+        .reduce((acc, line) => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) {
+                return acc;
+            }
+
+            const separatorIndex = trimmed.indexOf('=');
+            if (separatorIndex === -1) {
+                return acc;
+            }
+
+            const key = trimmed.slice(0, separatorIndex).trim();
+            const value = trimmed.slice(separatorIndex + 1).trim();
+
+            if (key) {
+                acc[key] = value;
+            }
+
+            return acc;
+        }, {});
 }
 
 // Handle enter key press in input field
@@ -88,9 +132,7 @@ async function handleSearch() {
 
 // Get Spotify access token using Client Credentials flow
 async function getAccessToken() {
-    if (!CLIENT_ID || !CLIENT_SECRET || 
-        CLIENT_ID === 'your_spotify_client_id_here' || 
-        CLIENT_SECRET === 'your_spotify_client_secret_here') {
+    if (!CLIENT_ID || !CLIENT_SECRET) {
         throw new Error('Please set your Spotify API credentials');
     }
     
